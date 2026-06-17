@@ -1,26 +1,93 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/components/theme-provider";
+import { AppLayout } from "@/components/layout";
+import { useAppStore } from "@/lib/store";
+
+import Landing from "@/pages/landing";
+import Onboarding from "@/pages/onboarding";
+import Dashboard from "@/pages/dashboard";
+import Analyze from "@/pages/analyze";
+import Results from "@/pages/results";
+import History from "@/pages/history";
+import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
-function Home() {
+function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user } = useAppStore();
+  const [location, setLocation] = useLocation();
+
+  if (!user) {
+    // If not logged in, redirect to landing
+    setLocation("/");
+    return null;
+  }
+
+  if (user && !user.onboardingCompleted && location !== "/onboarding") {
+    // Redirect to onboarding if not completed
+    setLocation("/onboarding");
+    return null;
+  }
+
+  // Use AppLayout for all protected routes except onboarding
+  if (location === "/onboarding") {
+    return <Component />;
+  }
+
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Replit Agent is building...</h1>
-        <p className="mt-2 text-sm text-gray-600">Your app will appear here once it's ready.</p>
-      </div>
-    </div>
+    <AppLayout>
+      <Component />
+    </AppLayout>
   );
+}
+
+function PublicOnlyRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user } = useAppStore();
+  const [, setLocation] = useLocation();
+
+  if (user) {
+    setLocation(user.onboardingCompleted ? "/dashboard" : "/onboarding");
+    return null;
+  }
+
+  return <Component />;
 }
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/">
+        {() => <PublicOnlyRoute component={Landing} />}
+      </Route>
+      <Route path="/onboarding">
+        {() => <ProtectedRoute component={Onboarding} />}
+      </Route>
+      <Route path="/dashboard">
+        {() => <ProtectedRoute component={Dashboard} />}
+      </Route>
+      <Route path="/analyze">
+        {() => <ProtectedRoute component={Analyze} />}
+      </Route>
+      <Route path="/results">
+        {() => <ProtectedRoute component={Results} />}
+      </Route>
+      <Route path="/history">
+        {() => <ProtectedRoute component={History} />}
+      </Route>
+      <Route path="/settings">
+        {() => <ProtectedRoute component={Settings} />}
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -28,14 +95,16 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ThemeProvider defaultTheme="system" storageKey="health-bunny-theme">
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+          <Toaster position="top-center" />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 
