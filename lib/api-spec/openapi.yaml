@@ -3,13 +3,15 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Health Bunny AI API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: symptoms
+    description: Symptom analysis operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /symptoms/analyze:
+    post:
+      operationId: analyzeSymptoms
+      tags: [symptoms]
+      summary: Analyze symptoms using AI
+      description: Analyze user symptoms and return health guidance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SymptomInput"
+      responses:
+        "200":
+          description: Health guidance result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthGuidance"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +69,96 @@ components:
       required:
         - status
 
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    SymptomInput:
+      type: object
+      required:
+        - symptomName
+        - severity
+        - duration
+        - ageRange
+      properties:
+        symptomName:
+          type: string
+          description: Name or description of the symptom
+        severity:
+          type: string
+          enum: [Mild, Moderate, Severe]
+          description: Severity level
+        duration:
+          type: string
+          enum: [Today, "1-3 Days", "4-7 Days", "More than a Week"]
+          description: How long the symptom has been present
+        ageRange:
+          type: string
+          enum: [Under 18, 18-24, 25-34, 35-44, 45-54, "55+"]
+          description: Age range of the user
+        additionalInfo:
+          type: ["string", "null"]
+          description: Additional symptom details
+        emergencySymptoms:
+          type: boolean
+          description: Whether emergency symptoms are present (e.g. chest pain, trouble breathing)
+
+    FoodRecommendation:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            type: string
+
+    HealthGuidance:
+      type: object
+      required:
+        - isEmergency
+        - recommendedFoods
+        - thingsToDo
+        - possibleCauses
+        - thingsToAvoid
+        - whenToSeeDoctor
+        - disclaimer
+      properties:
+        isEmergency:
+          type: boolean
+          description: Whether this is an emergency requiring immediate medical attention
+        emergencyMessage:
+          type: ["string", "null"]
+          description: Emergency warning message if applicable
+        recommendedFoods:
+          type: array
+          items:
+            type: string
+          description: Recommended foods and drinks
+        thingsToDo:
+          type: array
+          items:
+            type: string
+          description: Recommended actions to take
+        possibleCauses:
+          type: array
+          items:
+            type: string
+          description: Possible causes (not a diagnosis)
+        thingsToAvoid:
+          type: array
+          items:
+            type: string
+          description: Things to avoid
+        whenToSeeDoctor:
+          type: array
+          items:
+            type: string
+          description: Warning signs that indicate when to see a doctor
+        disclaimer:
+          type: string
+          description: Medical disclaimer text
