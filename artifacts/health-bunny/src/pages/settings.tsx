@@ -10,6 +10,7 @@ import { LogOut, Moon, Sun, Monitor, Save, Shield, Bug, MessageSquare } from "lu
 import { useState } from "react";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
+import { firebaseSignOut } from "@/lib/firebase";
 
 export default function Settings() {
   const { user, updateUser, logout } = useAppStore();
@@ -24,7 +25,12 @@ export default function Settings() {
     toast.success("Profile updated successfully");
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await firebaseSignOut();
+    } catch {
+      // ignore
+    }
     logout();
     setLocation("/");
   };

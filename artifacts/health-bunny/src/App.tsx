@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
@@ -5,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AppLayout } from "@/components/layout";
 import { useAppStore } from "@/lib/store";
+import { auth, onAuthStateChanged } from "@/lib/firebase";
 
 import Landing from "@/pages/landing";
 import Onboarding from "@/pages/onboarding";
@@ -29,18 +31,15 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   const [location, setLocation] = useLocation();
 
   if (!user) {
-    // If not logged in, redirect to landing
     setLocation("/");
     return null;
   }
 
   if (user && !user.onboardingCompleted && location !== "/onboarding") {
-    // Redirect to onboarding if not completed
     setLocation("/onboarding");
     return null;
   }
 
-  // Use AppLayout for all protected routes except onboarding
   if (location === "/onboarding") {
     return <Component />;
   }
@@ -93,12 +92,36 @@ function Router() {
   );
 }
 
+function FirebaseAuthSync() {
+  const { user, setUser, logout } = useAppStore();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        const currentOnboarding = user?.id === firebaseUser.uid ? user?.onboardingCompleted ?? false : false;
+        setUser({
+          id: firebaseUser.uid,
+          name: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "User",
+          email: firebaseUser.email || "",
+          onboardingCompleted: currentOnboarding,
+        });
+      } else {
+        logout();
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  return null;
+}
+
 function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="health-bunny-theme">
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <FirebaseAuthSync />
             <Router />
           </WouterRouter>
           <Toaster position="top-center" />
